@@ -1,0 +1,518 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<link rel="manifest" href="manifest.webmanifest">
+<meta name="theme-color" content="#1f5c4c">
+<link rel="icon" href="icon-192.png">
+<link rel="apple-touch-icon" href="apple-touch-icon.png">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-title" content="Ударения">
+<style>#upd{position:fixed;left:12px;right:12px;bottom:calc(12px + env(safe-area-inset-bottom,0px));display:flex;gap:10px;align-items:center;background:var(--card);border:1px solid var(--ac);border-radius:12px;padding:10px 12px;z-index:9}#upd[hidden]{display:none}</style>
+<title>Ударения для озвучки</title>
+<style>
+:root{--bg:#fafaf7;--fg:#1d1d1b;--mu:#6b6b66;--card:#fff;--bd:#dcdcd4;--ac:#2f6f5e;--acf:#fff;--er:#b3261e;box-sizing:border-box;padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)}
+@media(prefers-color-scheme:dark){:root:not([data-theme="light"]){--bg:#171917;--fg:#ecece6;--mu:#9a9a92;--card:#212421;--bd:#383c38;--ac:#5fb59c;--acf:#0d1a16;--er:#f2b8b5;color-scheme:dark}}
+:root[data-theme="dark"]{--bg:#171917;--fg:#ecece6;--mu:#9a9a92;--card:#212421;--bd:#383c38;--ac:#5fb59c;--acf:#0d1a16;--er:#f2b8b5;color-scheme:dark}
+html{scroll-padding-top:env(safe-area-inset-top,0px)}
+*{box-sizing:border-box}
+body{margin:0;background:var(--bg);color:var(--fg);font:16px/1.45 system-ui,-apple-system,"Segoe UI",Roboto,sans-serif;padding:12px;max-width:720px;margin:0 auto}
+h1{font-size:20px;margin:8px 0 12px}
+h2{font-size:16px;margin:0 0 8px}
+section{background:var(--card);border:1px solid var(--bd);border-radius:12px;padding:12px;margin-bottom:12px}
+input,select,textarea,button{font:inherit;color:inherit}
+input,select,textarea{width:100%;padding:10px;border:1px solid var(--bd);border-radius:8px;background:var(--bg);margin:4px 0}
+textarea{resize:vertical;font-size:14px}
+button{background:var(--ac);color:var(--acf);border:0;border-radius:8px;padding:11px 14px;font-weight:600;cursor:pointer}
+button:disabled{opacity:.5}
+button.s{background:transparent;color:var(--ac);border:1px solid var(--ac);padding:7px 10px}
+.row{display:flex;gap:8px;align-items:center}
+.row>*{flex:1}.row>button{flex:0 0 auto}
+.mu{color:var(--mu);font-size:13px}
+.er{color:var(--er)}
+.chip{display:inline-block;margin:3px 4px 0 0;padding:6px 10px;border:1px solid var(--bd);border-radius:16px;background:var(--bg);color:var(--fg);font-weight:400}
+.head{display:flex;justify-content:space-between;align-items:center;gap:8px;margin-bottom:4px}
+progress{width:100%}
+details summary{cursor:pointer;font-weight:600}
+.lt{font-size:30px;font-weight:600;line-height:52px;padding:0 2px}
+.vb{font-size:30px;min-width:46px;height:52px;padding:0;background:var(--bg);color:var(--fg);border:1px solid var(--ac);font-weight:600}
+.yb{font-size:16px;padding:6px 0;width:100%;margin-top:4px}
+.col{display:flex;flex-direction:column;align-items:center}
+</style>
+</head>
+<body>
+<h1>🎙 Ударения для озвучки</h1>
+
+<section>
+<h2>1. Текст</h2>
+<div class="row"><label for="file" style="display:block;text-align:center;background:var(--ac);color:var(--acf);border-radius:8px;padding:11px 14px;font-weight:600;cursor:pointer">📄 Выбрать файл</label><button type="button" id="paste" class="s">📋 Вставить из буфера</button></div>
+<input type="file" id="file" style="position:absolute;width:1px;height:1px;opacity:0">
+<select id="enc"><option value="utf-8">Кодировка файла: UTF-8</option><option value="windows-1251">Кодировка файла: Windows-1251</option></select>
+<textarea id="src" rows="3" placeholder="Здесь будет ваш текст. Его можно править: удалять слова, буквы, пробелы. Или вставьте текст сюда."></textarea>
+<div class="mu" id="info"></div>
+<details style="margin-top:8px"><summary>Настройки</summary>
+<label class="mu">Лимит символов в части</label>
+<input type="number" id="limit" min="100" step="100">
+<label class="mu">Вид ударения</label>
+<select id="style"><option value="acute">Знак ударения над буквой (а́)</option><option value="plus">Плюс перед буквой (+а)</option></select>
+<label class="mu">Маркер конца аята (необязательно, например ﴾ или ]) — по нему резать в первую очередь</label>
+<input id="marker" placeholder="не задан: режем по абзацам и строкам">
+<label class="mu">Способ расстановки ударений</label>
+<select id="eng"><option value="dict">Бесплатный словарь (без ключа, нужен интернет)</option><option value="ai">Claude (внутри Claude или с API-ключом)</option></select>
+<div class="mu">Словарь: RUAccent (Apache-2.0) в сборке nakash1987/subly-ru-tts (CC BY 4.0). Скачивается один раз, около 90 МБ. Работает только в своей копии страницы, не внутри Claude.</div>
+<div id="keybox"><label class="mu">API-ключ Anthropic (нужен только в скачанной версии для автоударений)</label>
+<input type="password" id="key" placeholder="sk-ant-…" autocomplete="off"></div>
+</details>
+<button id="go" style="width:100%;margin-top:10px">Расставить ударения и ё</button>
+<progress id="pg" value="0" max="1" hidden></progress>
+<div class="mu" id="status"></div>
+</section>
+
+<section>
+<h2>2. Готовые части</h2>
+<div class="mu" id="sum"></div>
+<div id="out"></div>
+</section>
+
+<section>
+<h2>3. Разбор слов по одному</h2>
+<div class="mu">Приложение показывает слова, у которых ещё нет ударения. Нажмите на ударную гласную. Если нужна ё, нажмите «ё» под буквой е.</div>
+<label class="mu"><input type="checkbox" id="rvrel" checked style="width:auto;margin-right:6px">Применять и к однокоренным словам</label>
+<label class="mu"><input type="checkbox" id="rvall" style="width:auto;margin-right:6px">Показывать и уже расставленные</label>
+<button id="rvstart" style="width:100%;margin-top:6px">Начать разбор</button>
+<div class="mu" id="rvinfo"></div>
+<div id="rvbox" hidden>
+<div class="mu" id="rvctx"></div>
+<div id="rvword" style="display:flex;flex-wrap:wrap;justify-content:center;align-items:flex-start;gap:4px;margin:14px 0"></div>
+<div class="row"><button class="s" id="rvback">← Назад</button><button class="s" id="rvskip">Пропустить →</button></div>
+<div class="mu" id="rvmsg" style="margin-top:6px"></div>
+</div>
+</section>
+
+<section>
+<h2>4. Исправить ударение</h2>
+<div class="mu">Введите слово и поставьте + перед ударной гласной (з+амок, зам+ок). Для ё плюс не нужен. Правило применится и к однокоренным словам, которые начинаются так же (по буквам до ударной, но не меньше четырёх), и сохранится на этом устройстве.</div>
+<div class="row"><input id="dv" placeholder="зам+ок" autocapitalize="none" autocomplete="off"><button id="add">Добавить</button></div>
+<label class="mu"><input type="checkbox" id="exact" style="width:auto;margin-right:6px">Только это слово (без однокоренных)</label>
+<div class="er mu" id="dmsg"></div>
+<div id="dlist"></div>
+<details style="margin-top:8px"><summary>Словосочетания (в раю / к раю)</summary>
+<div class="mu">Введите слова через пробел и нажмите на ударную гласную в нужном слове. Правило сработает только там, где эти слова стоят подряд, а одиночное слово не изменится.</div>
+<div class="row"><input id="pbin" placeholder="в раю" autocapitalize="none" autocomplete="off"><button id="pbgo" class="s">Выбрать</button></div>
+<div id="pbbox"></div>
+<button id="pbsave" hidden style="width:100%;margin-top:6px">Сохранить словосочетание</button>
+<div class="mu" id="pbmsg"></div>
+</details>
+<details style="margin-top:8px"><summary>Импорт и экспорт словаря</summary>
+<div class="mu">Одно слово на строку, ударение: + перед гласной или знак ударения над ней. Так можно загрузить большой готовый словарь ударений (слова добавляются как «точные»).</div>
+<textarea id="imp" rows="4"></textarea>
+<div class="row"><button class="s" id="impb">Импортировать</button><button class="s" id="expb">Копировать мой словарь</button></div>
+</details>
+<h2 style="margin-top:14px">Найти слово в тексте</h2>
+<input id="q" placeholder="начало слова" autocapitalize="none" autocomplete="off">
+<div class="mu">Нажмите на слово, оно попадёт в поле выше — останется переставить +.</div>
+<div id="wlist"></div>
+</section>
+
+<script>
+const $=id=>document.getElementById(id);
+const VOW=/[аеёиоуыэюя]/gi, WORD=/[А-Яа-яЁё]+/g;
+const norm=s=>s.toLowerCase().replace(/ё/g,'е');
+const nv=w=>(w.match(VOW)||[]).length;
+let text='',ai={},dict={},cfg={limit:10000,style:'acute',marker:''};
+try{dict=JSON.parse(localStorage.getItem('dict')||'{}');Object.assign(cfg,JSON.parse(localStorage.getItem('cfg')||'{}'))}catch(e){}
+for(const k in dict)if(typeof dict[k]==='string')dict[k]={v:dict[k],exact:false};
+const save=()=>{try{localStorage.setItem('dict',JSON.stringify(dict));localStorage.setItem('cfg',JSON.stringify(cfg))}catch(e){}};
+
+function lastEnd(re,w){let m,e=-1;re.lastIndex=0;while((m=re.exec(w)))e=m.index+m[0].length;return e}
+function split(t,limit,marker){
+  const out=[];let s=0;
+  while(t.length-s>limit){
+    const w=t.slice(s,s+limit),min=limit*0.5,c=[];
+    if(marker){const i=w.lastIndexOf(marker);c.push(i<0?-1:i+marker.length)}
+    c.push(lastEnd(/\r?\n(?:[ \t]*\r?\n)+/g,w));
+    c.push(w.lastIndexOf('\n')<0?-1:w.lastIndexOf('\n')+1);
+    c.push(lastEnd(/[.!?…]["»”)]*\s/g,w));
+    c.push(w.lastIndexOf(' ')<0?-1:w.lastIndexOf(' ')+1);
+    let cut=c.find(x=>x>=min);
+    if(cut===undefined)cut=Math.max(...c.filter(x=>x>0),limit);
+    out.push(t.slice(s,s+cut));s+=cut;
+  }
+  out.push(t.slice(s));return out;
+}
+function tf(w,v){
+  const si=v.indexOf('+'),p=v.replace('+','');
+  if(p.length!==w.length||norm(p)!==norm(w))return w;
+  const mono=nv(w)<2;let o='';
+  for(let i=0;i<w.length;i++){
+    let c=w[i];
+    if((c==='е'||c==='Е')&&p[i]==='ё')c=c==='е'?'ё':'Ё';
+    const yo=c==='ё'||c==='Ё';
+    if(i===si&&!mono&&!yo)o+=cfg.style==='plus'?'+'+c:c+'\u0301';else o+=c;
+  }
+  return o;
+}
+function pfOf(e){
+  const p=e.v.replace('+',''),si=e.v.indexOf('+'),yo=p.lastIndexOf('ё');
+  const n=Math.min(p.length,Math.max(si+1,yo+1,4));
+  return {n,pre:p.slice(0,n),key:norm(p.slice(0,n)),si};
+}
+const prefs=()=>Object.values(dict).filter(e=>!e.exact).map(pfOf).sort((a,b)=>b.n-a.n);
+function lookup(w,pf){
+  const k=norm(w),e=dict[k];
+  if(e)return e.v;
+  for(const x of pf){
+    if(k.length>=x.n&&k.startsWith(x.key)){
+      const lw=w.toLowerCase(),b=(ai[lw]||lw).replace('+','');
+      if(b.length!==w.length)continue;
+      const p=x.pre+b.slice(x.n);
+      return x.si>=0?p.slice(0,x.si)+'+'+p.slice(x.si):p;
+    }
+  }
+  return ai[w.toLowerCase()];
+}
+const SEP=/[ \t\u00a0]+/y,WORDY=/[А-Яа-яЁё]+/y;
+const apply=t=>{
+  const pf=prefs(),c=new Map(),ph={};
+  for(const [k,e] of Object.entries(dict))if(e.phrase){const ws=e.v.split(' '),f=norm(ws[0].replace('+',''));(ph[f]=ph[f]||[]).push({pk:k.split(' '),vs:ws})}
+  for(const a in ph)ph[a].sort((x,y)=>y.pk.length-x.pk.length);
+  const one=(w,v0)=>{
+    if(/[ёЁ]/.test(w))return w;
+    if(v0&&(v0.includes('+')||v0.includes('ё')))return tf(w,v0);
+    if(!c.has(w))c.set(w,lookup(w,pf));
+    const v=c.get(w);return v?tf(w,v):w;
+  };
+  const re=/[А-Яа-яЁё]+/g;let out='',last=0,m;
+  while((m=re.exec(t))){
+    const w=m[0],s=m.index;let hit=null;
+    const cands=ph[norm(w)];
+    if(cands)for(const p of cands){
+      let pos=s,ok=true;const parts=[];
+      for(let q=0;q<p.pk.length;q++){
+        if(q>0){SEP.lastIndex=pos;const sm=SEP.exec(t);if(!sm){ok=false;break}parts.push(sm[0]);pos+=sm[0].length}
+        WORDY.lastIndex=pos;const wm=WORDY.exec(t);
+        if(!wm||norm(wm[0])!==p.pk[q]){ok=false;break}
+        parts.push(wm[0]);pos+=wm[0].length;
+      }
+      if(ok){hit={p,parts,end:pos};break}
+    }
+    out+=t.slice(last,s);
+    if(hit){
+      hit.parts.forEach((x,i)=>{out+=i%2===0?one(x,hit.p.vs[i/2]):x});
+      last=hit.end;re.lastIndex=hit.end;
+    }else{out+=one(w);last=s+w.length}
+  }
+  return out+t.slice(last);
+};
+async function ask(s,prompt){
+  if(s)return await s.json(prompt);
+  const r=await fetch('https://api.anthropic.com/v1/messages',{method:'POST',headers:{'content-type':'application/json','x-api-key':$('key').value.trim(),'anthropic-version':'2023-06-01','anthropic-dangerous-direct-browser-access':'true'},body:JSON.stringify({model:'claude-sonnet-5-5',max_tokens:8000,messages:[{role:'user',content:prompt}]})});
+  if(!r.ok)throw {code:r.status===429?'rate_limited':'http',message:r.status};
+  const d=await r.json();
+  return JSON.parse(d.content.map(c=>c.text||'').join('').replace(/```json|```/g,'').trim());
+}
+const cand=w=>!/[ёЁ]/.test(w)&&(nv(w)>1||/[еЕ]/.test(w));
+
+async function copy(s,btn){
+  try{await navigator.clipboard.writeText(s)}catch(e){
+    const t=document.createElement('textarea');t.value=s;document.body.appendChild(t);t.select();
+    try{document.execCommand('copy')}catch(_){}t.remove();
+  }
+  const old=btn.dataset.l||(btn.dataset.l=btn.textContent);btn.textContent='Скопировано ✓';setTimeout(()=>btn.textContent=old,1500);
+}
+function render(){
+  const box=$('out');box.innerHTML='';
+  if(!text){$('sum').textContent='';return}
+  const res=apply(text),ch=split(res,cfg.limit,cfg.marker);
+  const ok=ch.join('')===res;
+  $('sum').textContent='Частей: '+ch.length+' · всего символов: '+res.length+(ok?' · разбивка без потерь ✓':' · ошибка разбивки!');
+  ch.forEach((c,i)=>{
+    const d=document.createElement('div');d.style.marginBottom='10px';
+    const h=document.createElement('div');h.className='head';
+    const l=document.createElement('b');l.textContent='Часть '+(i+1)+' из '+ch.length+' · '+c.length+' симв.';
+    const b=document.createElement('button');b.className='s';b.textContent='Копировать';b.onclick=()=>copy(c,b);
+    h.append(l,b);
+    const ta=document.createElement('textarea');ta.readOnly=true;ta.rows=4;ta.value=c;
+    d.append(h,ta);box.append(d);
+  });
+}
+function renderDict(){
+  const dl=$('dlist');dl.innerHTML='';
+  Object.entries(dict).slice(0,200).forEach(([k,e])=>{
+    const b=document.createElement('button');b.className='chip';b.textContent=e.v+(e.phrase?' (фраза)':e.exact?' (точно)':'')+'  ✕';
+    b.onclick=()=>{delete dict[k];save();render();renderDict()};
+    dl.append(b);
+  });
+  const q=$('q').value.trim().toLowerCase(),wl=$('wlist');wl.innerHTML='';
+  let n=0;
+  for(const [k,v] of Object.entries(ai)){
+    if(n>=40)break;
+    if(!v||(!v.includes('+')&&!v.includes('ё'))||(q&&!k.startsWith(q)))continue;
+    const b=document.createElement('button');b.className='chip';b.textContent=v;
+    b.onclick=()=>{$('dv').value=v;$('dv').focus()};wl.append(b);n++;
+  }
+}
+$('add').onclick=()=>{
+  const v=$('dv').value.trim().toLowerCase(),m=$('dmsg'),i=v.indexOf('+');
+  m.textContent='';
+  if(!/^[а-яё+]+$/.test(v)||(v.match(/\+/g)||[]).length>1||(i<0&&!v.includes('ё'))||(i>=0&&!/[аеёиоуыэюя]/.test(v[i+1]||''))){
+    m.className='er mu';m.textContent='Нужно одно слово кириллицей с + перед ударной гласной.';return;
+  }
+  const key=norm(v.replace('+','')),ex=$('exact').checked;
+  dict[key]={v,exact:ex};save();$('dv').value='';render();renderDict();
+  m.className='mu';m.textContent='Добавлено.';
+  if(!ex&&text){
+    const x=pfOf(dict[key]);
+    const hit=[...new Set((text.match(WORD)||[]).map(w=>w.toLowerCase()))].filter(w=>norm(w)!==key&&w.length>=x.n&&norm(w).startsWith(x.key));
+    m.textContent='Добавлено. Однокоренных в тексте: '+hit.length+(hit.length?' ('+hit.slice(0,8).join(', ')+(hit.length>8?'…':'')+'). Если среди них лишние, удалите правило и добавьте с галочкой «Только это слово».':'.');
+  }
+};
+const rv={list:[],i:0,hist:[]};
+const RVV='аеёиоуыэюя';
+function showRv(){
+  const pf=prefs(),all=$('rvall').checked;
+  const R=w=>{const v=lookup(w,pf);return !!v&&v.includes('+')};
+  while(rv.i<rv.list.length&&!all&&R(rv.list[rv.i]))rv.i++;
+  if(rv.i>=rv.list.length){$('rvbox').hidden=true;$('rvstart').hidden=false;$('rvinfo').textContent='Разбор закончен ✓ Просмотрено слов: '+rv.list.length+'.';return}
+  const w=rv.list[rv.i],rest=rv.list.slice(rv.i).filter(x=>all||!R(x)).length;
+  const re=new RegExp('(^|[^А-Яа-яЁё])('+w+')(?![А-Яа-яЁё])','gi'),all_=[...text.matchAll(re)];
+  $('rvinfo').textContent='Осталось слов: '+rest+(all_.length?' · это слово встречается раз: '+all_.length:'');
+  const c=$('rvctx');c.textContent='';
+  if(all_[0]){
+    const m=all_[0],s=m.index+m[1].length;
+    const a=text.slice(Math.max(0,s-50),s).replace(/\s+/g,' '),b=text.slice(s+w.length,s+w.length+50).replace(/\s+/g,' ');
+    const bold=document.createElement('b');bold.textContent=text.slice(s,s+w.length);
+    c.append('…'+a,bold,b+'…');
+  }
+  const base=((dict[norm(w)]&&dict[norm(w)].v)||ai[w]||w).replace('+',''),ww=$('rvword');ww.innerHTML='';
+  [...base].forEach((ch,j)=>{
+    if(!RVV.includes(ch)){const s=document.createElement('span');s.className='lt';s.textContent=ch;ww.append(s);return}
+    const col=document.createElement('div');col.className='col';
+    const b=document.createElement('button');b.className='vb';b.textContent=ch;b.onclick=()=>rvCommit(w,base,j,ch==='ё',false);
+    col.append(b);
+    if(ch==='е'){const y=document.createElement('button');y.className='s yb';y.textContent='ё';y.onclick=()=>rvCommit(w,base,j,true,true);col.append(y)}
+    ww.append(col);
+  });
+}
+function rvCommit(w,base,j,asYo,toYo){
+  const k=norm(w),ch=[...base];
+  if(toYo)ch[j]='ё';
+  const v=asYo?ch.join(''):ch.slice(0,j).join('')+'+'+ch.slice(j).join('');
+  rv.hist.push({k,prev:dict[k],i:rv.i});
+  dict[k]={v,exact:!$('rvrel').checked};save();render();renderDict();
+  let msg='Сохранено: '+v;
+  if($('rvrel').checked&&text){
+    const x=pfOf(dict[k]);
+    const hit=[...new Set((text.match(WORD)||[]).map(t=>t.toLowerCase()))].filter(t=>norm(t)!==k&&t.length>=x.n&&norm(t).startsWith(x.key));
+    if(hit.length)msg+='. Заодно применено к: '+hit.slice(0,8).join(', ')+(hit.length>8?'…':'');
+  }
+  $('rvmsg').textContent=msg;
+  rv.i++;showRv();
+}
+$('rvstart').onclick=()=>{
+  if(!text){$('rvinfo').textContent='Сначала загрузите или вставьте текст.';return}
+  rv.list=[...new Set((text.match(WORD)||[]).map(w=>w.toLowerCase()))].filter(w=>!w.includes('ё')&&nv(w)>1);
+  rv.i=0;rv.hist=[];$('rvmsg').textContent='';$('rvstart').hidden=true;$('rvbox').hidden=false;showRv();
+};
+$('rvskip').onclick=()=>{rv.hist.push({skip:1,i:rv.i});rv.i++;showRv()};
+$('rvback').onclick=()=>{
+  const h=rv.hist.pop();if(!h)return;
+  if(!h.skip){if(h.prev)dict[h.k]=h.prev;else delete dict[h.k];save();render();renderDict();$('rvmsg').textContent='Отменено.'}
+  rv.i=h.i;$('rvbox').hidden=false;$('rvstart').hidden=true;showRv();
+};
+$('rvall').onchange=()=>{if(!$('rvbox').hidden)showRv()};
+let pb=[];
+function renderPb(){
+  const box=$('pbbox');box.innerHTML='';
+  pb.forEach(o=>{
+    const row=document.createElement('div');row.style.cssText='display:flex;align-items:center;gap:3px;margin:6px 0;flex-wrap:wrap';
+    [...o.w].forEach((ch,j)=>{
+      if(!RVV.includes(ch)){const s=document.createElement('span');s.className='lt';s.style.cssText='font-size:22px;line-height:40px';s.textContent=ch;row.append(s);return}
+      const b=document.createElement('button');b.className='vb';b.style.cssText='min-width:40px;height:40px;font-size:22px';
+      if(o.si===j){b.style.background='var(--ac)';b.style.color='var(--acf)'}
+      b.textContent=ch;b.onclick=()=>{o.si=o.si===j?-1:j;renderPb()};row.append(b);
+    });
+    box.append(row);
+  });
+}
+$('pbgo').onclick=()=>{
+  const ws=$('pbin').value.trim().toLowerCase().split(/\s+/).filter(Boolean);
+  if(ws.length<2||ws.length>6||ws.some(w=>!/^[а-яё]+$/.test(w))){$('pbmsg').textContent='Введите от двух до шести слов кириллицей, например: в раю';return}
+  pb=ws.map(w=>({w,si:-1}));$('pbmsg').textContent='';$('pbsave').hidden=false;renderPb();
+};
+$('pbsave').onclick=()=>{
+  if(!pb.some(o=>o.si>=0||o.w.includes('ё'))){$('pbmsg').textContent='Нажмите на ударную гласную.';return}
+  const v=pb.map(o=>o.si>=0?o.w.slice(0,o.si)+'+'+o.w.slice(o.si):o.w).join(' ');
+  dict[norm(pb.map(o=>o.w).join(' '))]={v,exact:true,phrase:true};save();render();renderDict();
+  $('pbmsg').textContent='Сохранено: '+v;
+};
+$('q').oninput=renderDict;
+
+function saveDraft(t){try{localStorage.setItem('draft',t)}catch(e){}}
+function setText(t){text=t;ai={};saveDraft(t);$('info').textContent=t?'Символов: '+t.length+' · слов: '+((t.match(WORD)||[]).length):'';render();renderDict()}
+$('file').onchange=e=>{
+  const f=e.target.files[0];if(!f)return;
+  const r=new FileReader();
+  r.onload=()=>{setText(r.result);$('src').value=r.result;$('src').rows=10};
+  r.onerror=()=>{$('info').textContent='Не удалось прочитать файл. Вставьте текст вручную.'};
+  r.readAsText(f,$('enc').value);
+  e.target.value='';
+};
+$('paste').onclick=async()=>{
+  try{const t=await navigator.clipboard.readText();if(t){setText(t);$('src').value=t;$('src').rows=10}else $('info').textContent='Буфер пуст.'}
+  catch(e){$('info').textContent='Доступ к буферу закрыт: нажмите и удерживайте в поле ниже, затем «Вставить».'}
+};
+let tmr;
+$('src').oninput=()=>{
+  text=$('src').value;saveDraft(text);
+  $('info').textContent=text?'Символов: '+text.length+' · слов: '+((text.match(WORD)||[]).length):'';
+  clearTimeout(tmr);tmr=setTimeout(render,400);
+};
+try{const d=localStorage.getItem('draft');if(d){setText(d);$('src').value=d;$('src').rows=10}}catch(e){}
+['limit','style','marker'].forEach(k=>{
+  $(k).value=cfg[k];
+  $(k).onchange=()=>{
+    cfg.limit=Math.max(100,parseInt($('limit').value)||10000);cfg.style=$('style').value;cfg.marker=$('marker').value;
+    $('limit').value=cfg.limit;save();render();
+  };
+});
+
+const prompt_=(p,ws)=>`Ты эксперт по русской орфографии и ударениям. Ниже русский текст (в нём могут быть арабские имена и термины, записанные кириллицей) и список слов из него.
+Для КАЖДОГО слова из списка верни его форму: перед ударной гласной поставь знак +, а букву е замени на ё везде, где по правилам орфографии нужна ё. В односложных словах + не ставь. Учитывай контекст (омографы). Буквы, кроме е→ё, менять нельзя.
+Ответ: только JSON-объект вида {"слово": "сл+ово"}, ключи ровно как в списке, без пояснений.
+Список: ${ws.join(', ')}
+Текст:
+${p}`;
+
+const ENC=new TextEncoder();
+function cmpKey(u,s,l,kb){const m=Math.min(l,kb.length);for(let i=0;i<m;i++){const d=u[s+i]-kb[i];if(d)return d}return l-kb.length}
+class Bin{
+  constructor(buf,magic){
+    this.u=new Uint8Array(buf);this.dv=new DataView(buf);
+    if(String.fromCharCode(...this.u.subarray(0,4))!==magic)throw new Error('format');
+    this.n=this.dv.getUint32(4,true);this.base=8+this.n*4;
+  }
+  find(w){
+    const kb=ENC.encode(w);let lo=0,hi=this.n-1;
+    while(lo<=hi){
+      const mid=(lo+hi)>>1,o=this.base+this.dv.getUint32(8+mid*4,true),l=this.u[o],c=cmpKey(this.u,o+1,l,kb);
+      if(c===0)return o+1+l;
+      if(c<0)lo=mid+1;else hi=mid-1;
+    }
+    return -1;
+  }
+}
+const HF='https://huggingface.co/nakash1987/subly-ru-tts/resolve/main/';
+let DB=null;
+async function getBin(name){
+  const url=HF+name;let c=null;
+  try{c=await caches.open('ru-dict-v1');const m=await c.match(url);if(m)return await m.arrayBuffer()}catch(e){c=null}
+  const r=await fetch(url);if(!r.ok)throw new Error('http '+r.status);
+  const buf=await r.arrayBuffer();
+  try{if(c)await c.put(url,new Response(buf))}catch(e){}
+  return buf;
+}
+function restoreYo(w){
+  const p=DB.Y.find(w);if(p<0)return w;
+  const ch=[...w],n=DB.Y.u[p];
+  for(let i=0;i<n;i++){const pos=DB.Y.u[p+1+i];if(ch[pos]==='е')ch[pos]='ё'}
+  return ch.join('');
+}
+function dictStress(k){
+  const r=restoreYo(k);let p=DB.S.find(r);if(p<0&&r!==k)p=DB.S.find(k);
+  if(p<0)return r!==k?r:null;
+  const pos=DB.S.u[p];
+  return pos===255||pos>=r.length?r:r.slice(0,pos)+'+'+r.slice(pos);
+}
+$('go').onclick=async()=>{
+  if(!text){$('status').textContent='Сначала загрузите или вставьте текст.';return}
+  if($('eng').value==='dict'){
+    const btn=$('go');btn.disabled=true;
+    try{
+      if(!DB){
+        $('status').textContent='Загружаю словарь (около 90 МБ, один раз), подождите…';
+        const [a,b]=await Promise.all([getBin('ru_stress.bin'),getBin('ru_yo.bin')]);
+        DB={S:new Bin(a,'RUS1'),Y:new Bin(b,'RUYO')};
+      }
+    }catch(e){btn.disabled=false;$('status').textContent='Не удалось загрузить словарь. Внутри Claude страница не выходит в интернет, откройте свою копию страницы. Ошибка: '+e.message;return}
+    const pf0=prefs(),miss=[];
+    for(const k of new Set((text.match(WORD)||[]).filter(cand).map(w=>w.toLowerCase()))){
+      if(k in ai||lookup(k,pf0))continue;
+      const v=dictStress(k);if(v)ai[k]=v;else miss.push(k);
+    }
+    btn.disabled=false;render();renderDict();
+    $('status').textContent='Готово ✓'+(miss.length?' Не найдено в словаре: '+miss.length+' (например: '+miss.slice(0,15).join(', ')+'). Разберите их в блоке 3.':'');
+    return;
+  }
+  const sample=await window.claude?.use('sample');
+  if(!sample&&!$('key').value.trim()){$('status').textContent='Введите API-ключ Anthropic в «Настройках» или пользуйтесь своим словарём ниже.';return}
+  const pieces=split(text,2500,''),pg=$('pg'),pf0=prefs();
+  pg.hidden=false;pg.max=pieces.length;pg.value=0;$('go').disabled=true;$('status').textContent='';
+  let bad=0,stop='';
+  for(let i=0;i<pieces.length&&!stop;i++){
+    const p=pieces[i];
+    const ws=[...new Set((p.match(WORD)||[]).filter(cand).map(w=>w.toLowerCase()))].filter(w=>!(w in ai)&&!lookup(w,pf0));
+    if(ws.length){
+      try{
+        const r=await ask(sample,prompt_(p,ws));
+        let got=0;
+        for(const k of ws){
+          const v=r&&typeof r[k]==='string'?r[k].trim().toLowerCase():'';
+          if(v&&norm(v.replace('+',''))===norm(k)){ai[k]=v;got++}
+        }
+        if(got<ws.length)bad++;
+      }catch(e){
+        bad++;
+        if(e&&e.code==='http'&&(e.message==401||e.message==403))stop='API-ключ не подошёл.';
+        else if(e&&e.code==='not_granted')stop='Доступ к Claude не разрешён.';
+        else if(e&&e.code==='rate_limited')stop='Достигнут лимит запросов, нажмите кнопку позже: прогресс сохранён.';
+      }
+    }
+    pg.value=i+1;$('status').textContent='Обработано '+(i+1)+' из '+pieces.length;
+    render();renderDict();
+  }
+  $('go').disabled=false;
+  $('status').textContent=stop||(bad?'Готово, но часть слов не обработана. Нажмите кнопку ещё раз — дообработается только пропущенное.':'Готово ✓ Дальше разберите оставшиеся слова в блоке 3.');
+};
+try{$('eng').value=localStorage.getItem('eng')||(window.claude?'ai':'dict')}catch(e){}
+$('eng').onchange=()=>{try{localStorage.setItem('eng',$('eng').value)}catch(e){}};
+try{$('key').value=localStorage.getItem('akey')||''}catch(e){}
+$('key').onchange=()=>{try{localStorage.setItem('akey',$('key').value.trim())}catch(e){}};
+Promise.resolve(window.claude?.use('sample')).then(s=>{if(s)$('keybox').hidden=true}).catch(()=>{});
+$('impb').onclick=()=>{
+  let n=0;
+  for(let l of $('imp').value.split(/\r?\n/)){
+    l=l.trim().toLowerCase().replace(/([а-яё])\u0301/g,'+$1');
+    const i=l.indexOf('+');
+    if(!/^[а-яё+]+$/.test(l)||(l.match(/\+/g)||[]).length>1||(i<0&&!l.includes('ё'))||(i>=0&&!/[аеёиоуыэюя]/.test(l[i+1]||'')))continue;
+    dict[norm(l.replace('+',''))]={v:l,exact:true};n++;
+  }
+  save();render();renderDict();
+  $('dmsg').className='mu';$('dmsg').textContent='Импортировано слов: '+n;
+};
+$('expb').onclick=()=>copy(Object.values(dict).map(e=>e.v).join('\n'),$('expb'));
+renderDict();
+</script>
+<div class="mu" style="text-align:center;margin:8px 0 24px">Версия <span id="ver"></span></div>
+<div id="upd" hidden><span style="flex:1">Доступна новая версия</span><button id="updb">Обновить</button></div>
+<script>
+(function(){
+  const APP_VERSION='1.0.0';
+  document.getElementById('ver').textContent=APP_VERSION;
+  try{navigator.storage&&navigator.storage.persist&&navigator.storage.persist()}catch(e){}
+  if(!('serviceWorker' in navigator))return;
+  let want=false;
+  navigator.serviceWorker.addEventListener('controllerchange',()=>{if(want)location.reload()});
+  navigator.serviceWorker.register('sw.js').then(reg=>{
+    const show=w=>{document.getElementById('upd').hidden=false;document.getElementById('updb').onclick=()=>{want=true;w.postMessage('skip')}};
+    if(reg.waiting&&navigator.serviceWorker.controller)show(reg.waiting);
+    reg.addEventListener('updatefound',()=>{const n=reg.installing;if(n)n.addEventListener('statechange',()=>{if(n.state==='installed'&&navigator.serviceWorker.controller)show(n)})});
+    document.addEventListener('visibilitychange',()=>{if(!document.hidden)reg.update()});
+    reg.update();
+  }).catch(()=>{});
+})();
+</script>
+</body>
+</html>

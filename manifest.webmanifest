@@ -1,0 +1,16 @@
+{
+  "name": "Ударения для озвучки",
+  "short_name": "Ударения",
+  "description": "Ударения, ё и разбивка текста на части для ElevenLabs",
+  "lang": "ru",
+  "start_url": "./",
+  "scope": "./",
+  "display": "standalone",
+  "background_color": "#1f5c4c",
+  "theme_color": "#1f5c4c",
+  "icons": [
+    {"src": "icon-192.png", "sizes": "192x192", "type": "image/png", "purpose": "any"},
+    {"src": "icon-512.png", "sizes": "512x512", "type": "image/png", "purpose": "any"},
+    {"src": "icon-maskable-512.png", "sizes": "512x512", "type": "image/png", "purpose": "maskable"}
+  ]
+}
