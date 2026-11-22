@@ -73,6 +73,16 @@ details summary{cursor:pointer;font-weight:600}
 <section>
 <h2>2. Готовые части</h2>
 <div class="mu" id="sum"></div>
+<details style="margin:6px 0"><summary>Прослушивание</summary>
+<div class="mu">Читает голос вашего телефона, в ElevenLabs звучание будет другим. Не все голоса понимают ударения: проверьте кнопкой ниже.</div>
+<select id="tvoice"></select>
+<label class="mu">Скорость: <span id="trv">1</span></label>
+<input type="range" id="trate" min="0.6" max="1.4" step="0.1" value="1">
+<select id="tmarks"><option value="1">Со знаками ударения</option><option value="0">Без знаков (для сравнения)</option></select>
+<div class="row"><button class="s" id="tpause">⏸ Пауза</button><button class="s" id="tstop">⏹ Стоп</button></div>
+<button class="s" id="ttest" style="width:100%;margin-top:6px">Проверить, понимает ли голос ударения</button>
+<div class="mu" id="tmsg"></div>
+</details>
 <div id="out"></div>
 </section>
 
@@ -94,7 +104,7 @@ details summary{cursor:pointer;font-weight:600}
 <section>
 <h2>4. Исправить ударение</h2>
 <div class="mu">Введите слово и поставьте + перед ударной гласной (з+амок, зам+ок). Для ё плюс не нужен. Правило применится и к однокоренным словам, которые начинаются так же (по буквам до ударной, но не меньше четырёх), и сохранится на этом устройстве.</div>
-<div class="row"><input id="dv" placeholder="зам+ок" autocapitalize="none" autocomplete="off"><button id="add">Добавить</button></div>
+<div class="row"><input id="dv" placeholder="зам+ок" autocapitalize="none" autocomplete="off"><button id="add">Добавить</button><button id="dvs" class="s" title="Послушать">🔊</button></div>
 <label class="mu"><input type="checkbox" id="exact" style="width:auto;margin-right:6px">Только это слово (без однокоренных)</label>
 <div class="er mu" id="dmsg"></div>
 <div id="dlist"></div>
@@ -233,7 +243,7 @@ function render(){
     const h=document.createElement('div');h.className='head';
     const l=document.createElement('b');l.textContent='Часть '+(i+1)+' из '+ch.length+' · '+c.length+' симв.';
     const b=document.createElement('button');b.className='s';b.textContent='Копировать';b.onclick=()=>copy(c,b);
-    h.append(l,b);
+    const sp=document.createElement('button');sp.className='s';sp.textContent='🔊';sp.onclick=()=>speak(c);h.append(l,sp,b);
     const ta=document.createElement('textarea');ta.readOnly=true;ta.rows=4;ta.value=c;
     d.append(h,ta);box.append(d);
   });
@@ -347,6 +357,47 @@ $('pbsave').onclick=()=>{
   const v=pb.map(o=>o.si>=0?o.w.slice(0,o.si)+'+'+o.w.slice(o.si):o.w).join(' ');
   dict[norm(pb.map(o=>o.w).join(' '))]={v,exact:true,phrase:true};save();render();renderDict();
   $('pbmsg').textContent='Сохранено: '+v;
+};
+const TS='speechSynthesis' in window;
+function fillVoices(){
+  if(!TS)return;const s=$('tvoice'),cur=s.value;s.innerHTML='';
+  const vs=speechSynthesis.getVoices().filter(v=>/^ru/i.test(v.lang));
+  if(!vs.length){s.innerHTML='<option value="">русский голос не найден</option>';return}
+  vs.forEach(v=>{const o=document.createElement('option');o.value=v.name;o.textContent=v.name;s.append(o)});
+  if(cur)s.value=cur;
+}
+if(TS){fillVoices();speechSynthesis.onvoiceschanged=fillVoices}
+function pieces(t){
+  const out=[];
+  for(const line of t.split(/\n+/)){
+    let s=line.trim();
+    while(s.length>180){let i=s.lastIndexOf(' ',180);if(i<60)i=180;out.push(s.slice(0,i));s=s.slice(i).trim()}
+    if(s)out.push(s);
+  }
+  return out;
+}
+function speak(t){
+  if(!TS){$('tmsg').textContent='Этот браузер не умеет читать вслух.';return}
+  speechSynthesis.cancel();speechSynthesis.resume();$('tpause').textContent='⏸ Пауза';
+  if($('tmarks').value==='0')t=t.replace(/\u0301/g,'').replace(/\+(?=[аеёиоуыэюя])/gi,'');
+  const v=speechSynthesis.getVoices().find(x=>x.name===$('tvoice').value);
+  pieces(t).forEach(p=>{const u=new SpeechSynthesisUtterance(p);u.lang='ru-RU';if(v)u.voice=v;u.rate=parseFloat($('trate').value)||1;speechSynthesis.speak(u)});
+}
+$('trate').oninput=()=>{$('trv').textContent=$('trate').value};
+$('tstop').onclick=()=>{if(TS)speechSynthesis.cancel()};
+$('tpause').onclick=()=>{
+  if(!TS)return;
+  if(speechSynthesis.paused){speechSynthesis.resume();$('tpause').textContent='⏸ Пауза'}
+  else{speechSynthesis.pause();$('tpause').textContent='▶ Дальше'}
+};
+$('ttest').onclick=()=>{
+  const a=tf('замок','з+амок'),b=tf('замок','зам+ок');
+  $('tmsg').textContent='Звучит: «'+a+'», «'+b+'», «'+a+'», «'+b+'». Если слова звучат по-разному, голос понимает ударения. Если одинаково, он их игнорирует: тогда на слух проверяйте только ё, а ударения смотрите глазами.';
+  $('tmarks').value='1';speak(a+'. '+b+'. '+a+'. '+b+'.');
+};
+$('dvs').onclick=()=>{
+  const v=$('dv').value.trim().toLowerCase();if(!v)return;
+  const p=v.replace('+','');speak(/[+ё]/.test(v)?tf(p,v):p);
 };
 $('q').oninput=renderDict;
 
@@ -499,7 +550,7 @@ renderDict();
 <div id="upd" hidden><span style="flex:1">Доступна новая версия</span><button id="updb">Обновить</button></div>
 <script>
 (function(){
-  const APP_VERSION='1.0.0';
+  const APP_VERSION='1.1.0';
   document.getElementById('ver').textContent=APP_VERSION;
   try{navigator.storage&&navigator.storage.persist&&navigator.storage.persist()}catch(e){}
   if(!('serviceWorker' in navigator))return;
@@ -515,4 +566,6 @@ renderDict();
 })();
 </script>
 </body>
+</html>
+
 </html>
