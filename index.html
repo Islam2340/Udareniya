@@ -128,6 +128,11 @@ details summary{cursor:pointer;font-weight:600}
 <div id="wlist"></div>
 </section>
 
+<div id="plr" style="display:none;position:fixed;left:8px;right:8px;bottom:calc(8px + env(safe-area-inset-bottom,0px));background:var(--card);border:1px solid var(--ac);border-radius:12px;padding:8px 10px;z-index:8;box-shadow:0 2px 12px rgba(0,0,0,.25)">
+<div class="mu" id="pcur" style="white-space:nowrap;overflow:hidden;text-overflow:ellipsis"></div>
+<input type="range" id="tbar" min="0" max="0" value="0" style="margin:2px 0">
+<div class="row"><span class="mu" id="ppos"></span><button class="s" id="ppause">⏸</button><button class="s" id="pstop">⏹</button><button class="s" id="pclose">✕</button></div>
+</div>
 <script>
 const $=id=>document.getElementById(id);
 const VOW=/[аеёиоуыэюя]/gi, WORD=/[А-Яа-яЁё]+/g;
@@ -413,6 +418,80 @@ $('dvs').onclick=()=>{
   const v=$('dv').value.trim().toLowerCase();if(!v)return;
   const p=v.replace('+','');speak(/[+ё]/.test(v)?tf(p,v):p);
 };
+const P={pieces:[],i:0,playing:false,paused:false,gen:0,u:null};
+let drag=false;
+function pieces(t){
+  const out=[];
+  for(const line of t.split(/\n+/)){
+    const sents=line.match(/[^.!?…]+[.!?…»"”)]*\s*/g)||[];
+    let cur='';
+    for(let s of sents){
+      s=s.trim();if(!s)continue;
+      if((cur+' '+s).trim().length<=180)cur=(cur+' '+s).trim();
+      else{
+        if(cur)out.push(cur);
+        while(s.length>180){let i=s.lastIndexOf(' ',180);if(i<60)i=180;out.push(s.slice(0,i));s=s.slice(i).trim()}
+        cur=s;
+      }
+    }
+    if(cur)out.push(cur);
+  }
+  return out;
+}
+function updBar(){
+  const n=P.pieces.length,pl=$('plr');
+  if(!n){pl.style.display='none';document.body.style.paddingBottom='';return}
+  pl.style.display='block';document.body.style.paddingBottom='150px';
+  const k=Math.min(P.i,n-1),tb=$('tbar');
+  tb.max=Math.max(0,n-1);
+  if(!drag){tb.value=k;$('ppos').textContent=(k+1)+' / '+n;$('pcur').textContent=P.pieces[k]||''}
+  $('tpause').textContent=P.playing?'⏸ Пауза':(P.paused?'▶ Дальше':'▶ Играть');
+  $('ppause').textContent=P.playing?'⏸':'▶';
+}
+function playFrom(i){
+  if(!TS||!P.pieces.length)return;
+  P.gen++;speechSynthesis.cancel();
+  const g=P.gen;P.i=i;P.playing=true;P.paused=false;
+  const v=speechSynthesis.getVoices().find(x=>x.name===$('tvoice').value);
+  const step=()=>{
+    if(g!==P.gen)return;
+    if(P.i>=P.pieces.length){P.playing=false;P.i=0;updBar();return}
+    const u=new SpeechSynthesisUtterance(P.pieces[P.i]);
+    u.lang='ru-RU';if(v)u.voice=v;u.rate=parseFloat($('trate').value)||1;
+    u.onend=()=>{if(g===P.gen){P.i++;step()}};
+    u.onerror=()=>{if(g===P.gen){P.playing=false;updBar()}};
+    P.u=u;updBar();speechSynthesis.speak(u);
+  };
+  updBar();setTimeout(step,60);
+}
+function speak(t){
+  if(!TS){$('tmsg').textContent='Этот браузер не умеет читать вслух.';return}
+  if($('tmarks').value==='0')t=t.replace(/\u0301/g,'').replace(/\+(?=[аеёиоуыэюя])/gi,'');
+  P.pieces=pieces(t);if(!P.pieces.length)return;
+  playFrom(0);
+}
+function togglePause(){
+  if(!P.pieces.length)return;
+  if(P.playing){P.gen++;speechSynthesis.cancel();P.playing=false;P.paused=true;updBar()}
+  else{P.paused=false;playFrom(P.i)}
+}
+function stopPlay(close){
+  P.gen++;if(TS)speechSynthesis.cancel();
+  P.playing=false;P.paused=false;P.i=0;if(close)P.pieces=[];updBar();
+}
+$('tpause').onclick=togglePause;$('ppause').onclick=togglePause;
+$('tstop').onclick=()=>stopPlay(false);$('pstop').onclick=()=>stopPlay(false);
+$('pclose').onclick=()=>stopPlay(true);
+$('tbar').addEventListener('pointerdown',()=>{drag=true});
+$('tbar').addEventListener('pointercancel',()=>{drag=false});
+$('tbar').oninput=()=>{
+  const j=parseInt($('tbar').value)||0;
+  $('ppos').textContent=(j+1)+' / '+P.pieces.length;$('pcur').textContent=P.pieces[j]||'';
+};
+$('tbar').onchange=()=>{
+  drag=false;const j=parseInt($('tbar').value)||0;P.i=j;
+  if(P.paused)updBar();else playFrom(j);
+};
 $('q').oninput=renderDict;
 
 function saveDraft(t){try{localStorage.setItem('draft',t)}catch(e){}}
@@ -564,7 +643,7 @@ renderDict();
 <div id="upd" hidden><span style="flex:1">Доступна новая версия</span><button id="updb">Обновить</button></div>
 <script>
 (function(){
-  const APP_VERSION='1.1.2';
+  const APP_VERSION='1.2.0';
   document.getElementById('ver').textContent=APP_VERSION;
   try{navigator.storage&&navigator.storage.persist&&navigator.storage.persist()}catch(e){}
   if(!('serviceWorker' in navigator))return;
@@ -580,6 +659,8 @@ renderDict();
 })();
 </script>
 </body>
+</html>
+
 </html>
 
 </html>
