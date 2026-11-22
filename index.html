@@ -77,7 +77,7 @@ details summary{cursor:pointer;font-weight:600}
 <div class="mu">Читает голос вашего телефона, в ElevenLabs звучание будет другим. Не все голоса понимают ударения: проверьте кнопкой ниже.</div>
 <select id="tvoice"></select>
 <label class="mu">Скорость: <span id="trv">1</span></label>
-<input type="range" id="trate" min="0.6" max="1.4" step="0.1" value="1">
+<input type="range" id="trate" min="0.6" max="2" step="0.1" value="1">
 <select id="tmarks"><option value="1">Со знаками ударения</option><option value="0">Без знаков (для сравнения)</option></select>
 <div class="row"><button class="s" id="tpause">⏸ Пауза</button><button class="s" id="tstop">⏹ Стоп</button></div>
 <button class="s" id="ttest" style="width:100%;margin-top:6px">Проверить, понимает ли голос ударения</button>
@@ -643,7 +643,7 @@ renderDict();
 <div id="upd" hidden><span style="flex:1">Доступна новая версия</span><button id="updb">Обновить</button></div>
 <script>
 (function(){
-  const APP_VERSION='1.2.0';
+  const APP_VERSION='1.2.1';
   document.getElementById('ver').textContent=APP_VERSION;
   try{navigator.storage&&navigator.storage.persist&&navigator.storage.persist()}catch(e){}
   if(!('serviceWorker' in navigator))return;
@@ -659,6 +659,8 @@ renderDict();
 })();
 </script>
 </body>
+</html>
+
 </html>
 
 </html>
