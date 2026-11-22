@@ -82,6 +82,8 @@ details summary{cursor:pointer;font-weight:600}
 <div class="row"><button class="s" id="tpause">⏸ Пауза</button><button class="s" id="tstop">⏹ Стоп</button></div>
 <button class="s" id="ttest" style="width:100%;margin-top:6px">Проверить, понимает ли голос ударения</button>
 <div class="mu" id="tmsg"></div>
+<div class="mu" id="tdiag"></div>
+<button class="s" id="tref" style="margin-top:6px">Обновить список голосов</button>
 </details>
 <div id="out"></div>
 </section>
@@ -362,6 +364,7 @@ const TS='speechSynthesis' in window;
 function fillVoices(){
   if(!TS)return;const s=$('tvoice'),cur=s.value;s.innerHTML='';
   const all=speechSynthesis.getVoices();
+  $('tdiag').textContent='Голосов в браузере: '+all.length+(all.length?'; языки: '+[...new Set(all.map(v=>v.lang))].slice(0,12).join(', '):'');
   const vs=all.filter(v=>/^ru/i.test((v.lang||'').replace('_','-'))||/russian|рус/i.test(v.name||''));
   if(!vs.length){
     s.innerHTML='<option value="">голос по умолчанию (русский не найден)</option>';
@@ -375,7 +378,7 @@ function fillVoices(){
 if(TS){
   fillVoices();speechSynthesis.onvoiceschanged=fillVoices;
   setTimeout(fillVoices,800);setTimeout(fillVoices,2500);
-  $('tvoice').onfocus=fillVoices;
+  $('tvoice').onfocus=fillVoices;$('tref').onclick=fillVoices;
   $('tvoice').parentElement.addEventListener('toggle',fillVoices);
 }
 function pieces(t){
@@ -561,7 +564,7 @@ renderDict();
 <div id="upd" hidden><span style="flex:1">Доступна новая версия</span><button id="updb">Обновить</button></div>
 <script>
 (function(){
-  const APP_VERSION='1.1.1';
+  const APP_VERSION='1.1.2';
   document.getElementById('ver').textContent=APP_VERSION;
   try{navigator.storage&&navigator.storage.persist&&navigator.storage.persist()}catch(e){}
   if(!('serviceWorker' in navigator))return;
@@ -577,6 +580,8 @@ renderDict();
 })();
 </script>
 </body>
+</html>
+
 </html>
 
 </html>
