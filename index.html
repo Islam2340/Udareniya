@@ -109,7 +109,6 @@ details summary{cursor:pointer;font-weight:600}
 <div class="row"><input id="dv" placeholder="зам+ок" autocapitalize="none" autocomplete="off"><button id="add">Добавить</button><button id="dvs" class="s" title="Послушать">🔊</button></div>
 <label class="mu"><input type="checkbox" id="exact" style="width:auto;margin-right:6px">Только это слово (без однокоренных)</label>
 <div class="er mu" id="dmsg"></div>
-<div id="dlist"></div>
 <details style="margin-top:8px"><summary>Словосочетания (в раю / к раю)</summary>
 <div class="mu">Введите слова через пробел и нажмите на ударную гласную в нужном слове. Правило сработает только там, где эти слова стоят подряд, а одиночное слово не изменится.</div>
 <div class="row"><input id="pbin" placeholder="в раю" autocapitalize="none" autocomplete="off"><button id="pbgo" class="s">Выбрать</button></div>
@@ -117,7 +116,15 @@ details summary{cursor:pointer;font-weight:600}
 <button id="pbsave" hidden style="width:100%;margin-top:6px">Сохранить словосочетание</button>
 <div class="mu" id="pbmsg"></div>
 </details>
-<details style="margin-top:8px"><summary>Импорт и экспорт словаря</summary>
+<details style="margin-top:8px" id="notebk"><summary id="nsum">📒 Мой словарь</summary>
+<div class="mu">Одна запись на строку. «кн+ига» применяется и к однокоренным словам. «джибр+ил !» только это слово. «в ра+ю» словосочетание. Правьте и удаляйте строки как в блокноте, затем нажмите «Сохранить».</div>
+<textarea id="note" rows="12" style="font-family:monospace" autocapitalize="none" spellcheck="false"></textarea>
+<div class="row"><button id="nsave">Сохранить</button><button class="s" id="ncopy">Копировать</button></div>
+<div class="row" style="margin-top:6px"><button class="s" id="ndl">Скачать файл</button><label for="nfile" style="text-align:center;border:1px solid var(--ac);color:var(--ac);border-radius:8px;padding:7px 10px;font-weight:600;cursor:pointer">Загрузить из файла</label></div>
+<input type="file" id="nfile" style="position:absolute;width:1px;height:1px;opacity:0">
+<div class="mu" id="nmsg"></div>
+</details>
+<details hidden style="margin-top:8px"><summary>Импорт и экспорт словаря</summary>
 <div class="mu">Одно слово на строку, ударение: + перед гласной или знак ударения над ней. Так можно загрузить большой готовый словарь ударений (слова добавляются как «точные»).</div>
 <textarea id="imp" rows="4"></textarea>
 <div class="row"><button class="s" id="impb">Импортировать</button><button class="s" id="expb">Копировать мой словарь</button></div>
@@ -256,12 +263,7 @@ function render(){
   });
 }
 function renderDict(){
-  const dl=$('dlist');dl.innerHTML='';
-  Object.entries(dict).slice(0,200).forEach(([k,e])=>{
-    const b=document.createElement('button');b.className='chip';b.textContent=e.v+(e.phrase?' (фраза)':e.exact?' (точно)':'')+'  ✕';
-    b.onclick=()=>{delete dict[k];save();render();renderDict()};
-    dl.append(b);
-  });
+  refreshNote();
   const q=$('q').value.trim().toLowerCase(),wl=$('wlist');wl.innerHTML='';
   let n=0;
   for(const [k,v] of Object.entries(ai)){
@@ -637,13 +639,65 @@ $('impb').onclick=()=>{
   $('dmsg').className='mu';$('dmsg').textContent='Импортировано слов: '+n;
 };
 $('expb').onclick=()=>copy(Object.values(dict).map(e=>e.v).join('\n'),$('expb'));
+function noteText(){return Object.values(dict).map(e=>e.v+(e.exact&&!e.phrase?' !':'')).sort((a,b)=>a.localeCompare(b,'ru')).join('\n')}
+function refreshNote(){
+  $('nsum').textContent='📒 Мой словарь ('+Object.keys(dict).length+')';
+  if(document.activeElement!==$('note'))$('note').value=noteText();
+}
+function parseNote(txt){
+  const out={},bad=[];
+  for(const raw of txt.split(/\r?\n/)){
+    let l=raw.trim().toLowerCase().replace(/([а-яё])\u0301/g,'+$1');
+    if(!l||l[0]==='#')continue;
+    let ex=false;
+    if(/\s*!$/.test(l)){ex=true;l=l.replace(/\s*!$/,'')}
+    const ws=l.split(/\s+/);
+    let ok=ws.length<=6,np=0,yo=false;
+    for(const w of ws){
+      if(!/^[а-яё+]+$/.test(w)||(w.match(/\+/g)||[]).length>1){ok=false;break}
+      const i=w.indexOf('+');
+      if(i>=0){np++;if(!/[аеёиоуыэюя]/.test(w[i+1]||''))ok=false}
+      if(w.includes('ё'))yo=true;
+    }
+    if(!ok||(np===0&&!yo)){bad.push(raw.trim());continue}
+    const v=ws.join(' '),key=norm(v.replace(/\+/g,''));
+    out[key]=ws.length>1?{v,exact:true,phrase:true}:{v,exact:ex};
+  }
+  return {out,bad};
+}
+$('nsave').onclick=()=>{
+  const {out,bad}=parseNote($('note').value);
+  dict=out;save();render();renderDict();$('note').value=noteText();
+  $('nmsg').className=bad.length?'er mu':'mu';
+  $('nmsg').textContent='Сохранено записей: '+Object.keys(out).length+(bad.length?'. Не распознано строк: '+bad.length+' (например: '+bad.slice(0,3).join(' | ')+')':'');
+};
+$('ncopy').onclick=()=>copy($('note').value,$('ncopy'));
+$('ndl').onclick=()=>{
+  const a=document.createElement('a');
+  a.href=URL.createObjectURL(new Blob([noteText()],{type:'text/plain;charset=utf-8'}));
+  a.download='slovar-udareniy.txt';document.body.append(a);a.click();a.remove();
+  $('nmsg').className='mu';$('nmsg').textContent='Если файл не скачался, нажмите «Копировать» и вставьте в заметки.';
+};
+$('nfile').onchange=e=>{
+  const f=e.target.files[0];if(!f)return;
+  const r=new FileReader();
+  r.onload=()=>{
+    const {out,bad}=parseNote(String(r.result));
+    let add=0,upd=0;
+    for(const k in out){if(dict[k])upd++;else add++;dict[k]=out[k]}
+    save();render();renderDict();
+    $('nmsg').className=bad.length?'er mu':'mu';
+    $('nmsg').textContent='Добавлено: '+add+', обновлено: '+upd+(bad.length?', не распознано строк: '+bad.length:'');
+  };
+  r.readAsText(f,'utf-8');e.target.value='';
+};
 renderDict();
 </script>
 <div class="mu" style="text-align:center;margin:8px 0 24px">Версия <span id="ver"></span></div>
 <div id="upd" hidden><span style="flex:1">Доступна новая версия</span><button id="updb">Обновить</button></div>
 <script>
 (function(){
-  const APP_VERSION='1.2.1';
+  const APP_VERSION='1.3.0';
   document.getElementById('ver').textContent=APP_VERSION;
   try{navigator.storage&&navigator.storage.persist&&navigator.storage.persist()}catch(e){}
   if(!('serviceWorker' in navigator))return;
@@ -659,6 +713,8 @@ renderDict();
 })();
 </script>
 </body>
+</html>
+
 </html>
 
 </html>
