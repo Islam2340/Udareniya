@@ -10,7 +10,7 @@
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-title" content="Ударения">
-<style>#upd{position:fixed;left:12px;right:12px;bottom:calc(12px + env(safe-area-inset-bottom,0px));display:flex;gap:10px;align-items:center;background:var(--card);border:1px solid var(--ac);border-radius:12px;padding:10px 12px;z-index:9}#upd[hidden]{display:none}</style>
+<style>#upd{position:fixed;left:12px;right:12px;bottom:calc(12px + env(safe-area-inset-bottom,0px));display:flex;gap:10px;align-items:center;background:var(--card);border:1px solid var(--ac);border-radius:12px;padding:10px 12px;z-index:9}#upd[hidden]{display:none}#tp[hidden]{display:none}</style>
 <title>Ударения для озвучки</title>
 <style>
 :root{--bg:#fafaf7;--fg:#1d1d1b;--mu:#6b6b66;--card:#fff;--bd:#dcdcd4;--ac:#2f6f5e;--acf:#fff;--er:#b3261e;box-sizing:border-box;padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)}
@@ -73,6 +73,8 @@ details summary{cursor:pointer;font-weight:600}
 <section>
 <h2>2. Готовые части</h2>
 <div class="mu" id="sum"></div>
+<div class="mu">💡 Нажмите дважды на любое слово в тексте ниже: появится выбор ударной буквы, и ударение сохранится в словаре.</div>
+<div class="mu" id="tapmsg"></div>
 <details style="margin:6px 0"><summary>Прослушивание</summary>
 <div class="mu">Читает голос вашего телефона, в ElevenLabs звучание будет другим. Не все голоса понимают ударения: проверьте кнопкой ниже.</div>
 <select id="tvoice"></select>
@@ -135,6 +137,13 @@ details summary{cursor:pointer;font-weight:600}
 <div id="wlist"></div>
 </section>
 
+<div id="tp" hidden style="position:fixed;inset:0;background:rgba(0,0,0,.55);z-index:20;display:flex;align-items:center;justify-content:center;padding:12px">
+<div style="background:var(--card);border:1px solid var(--ac);border-radius:12px;padding:14px;max-width:560px;width:100%;max-height:90vh;overflow:auto">
+<div class="mu">Нажмите на ударную гласную. Если нужна ё, нажмите «ё» под буквой е.</div>
+<div id="tpword" style="display:flex;flex-wrap:wrap;justify-content:center;align-items:flex-start;gap:4px;margin:12px 0"></div>
+<label class="mu"><input type="checkbox" id="tprel" style="width:auto;margin-right:6px">Применять и к однокоренным словам</label>
+<button class="s" id="tpcancel" style="width:100%;margin-top:8px">Отмена</button>
+</div></div>
 <div id="plr" style="display:none;position:fixed;left:8px;right:8px;bottom:calc(8px + env(safe-area-inset-bottom,0px));background:var(--card);border:1px solid var(--ac);border-radius:12px;padding:8px 10px;z-index:8;box-shadow:0 2px 12px rgba(0,0,0,.25)">
 <div class="mu" id="pcur" style="white-space:nowrap;overflow:hidden;text-overflow:ellipsis"></div>
 <input type="range" id="tbar" min="0" max="0" value="0" style="margin:2px 0">
@@ -259,6 +268,7 @@ function render(){
     const b=document.createElement('button');b.className='s';b.textContent='Копировать';b.onclick=()=>copy(c,b);
     const sp=document.createElement('button');sp.className='s';sp.textContent='🔊';sp.onclick=()=>speak(c);h.append(l,sp,b);
     const ta=document.createElement('textarea');ta.readOnly=true;ta.rows=4;ta.value=c;
+    ta.addEventListener('click',()=>tapClick(ta));ta.addEventListener('dblclick',()=>setTimeout(()=>tapOpen(ta),0));
     d.append(h,ta);box.append(d);
   });
 }
@@ -290,6 +300,75 @@ $('add').onclick=()=>{
 };
 const rv={list:[],i:0,hist:[]};
 const RVV='аеёиоуыэюя';
+// ===== Двойное нажатие на слово в готовой части =====
+const WORDX=/[А-Яа-яЁё\u0301+]+/g;
+let tapLast=0,tapOpenAt=0,tapUndo=null;
+function rerender(){
+  const y=window.scrollY,old=[...document.querySelectorAll('#out textarea')].map(t=>({s:t.scrollTop,h:t.style.height}));
+  render();renderDict();
+  document.querySelectorAll('#out textarea').forEach((t,i)=>{const o=old[i];if(o){if(o.h)t.style.height=o.h;t.scrollTop=o.s}});
+  window.scrollTo(0,y);
+}
+function wordAt(t,pos){
+  let m;WORDX.lastIndex=0;
+  while((m=WORDX.exec(t))){
+    const st=m.index,en=st+m[0].length;
+    if(pos>=st&&pos<=en)return m[0];
+    if(st>pos)break;
+  }
+  return null;
+}
+function tapClick(ta){
+  const n=Date.now();
+  if(n-tapLast<400){tapLast=0;setTimeout(()=>tapOpen(ta),0)}else tapLast=n;
+}
+function tapOpen(ta){
+  if(Date.now()-tapOpenAt<700)return;
+  const a=ta.selectionStart,b=ta.selectionEnd;
+  const raw=wordAt(ta.value,a===b?a:Math.floor((a+b)/2));
+  if(!raw)return;
+  const base=raw.replace(/[\u0301+]/g,'').toLowerCase();
+  if(!base||!nv(base))return;
+  const msg=$('tapmsg');msg.className='mu';
+  if(base.includes('ё')){msg.textContent='В слове «'+base+'» уже есть ё, оно и есть ударная.';return}
+  tapOpenAt=Date.now();
+  try{ta.blur();const g=window.getSelection&&window.getSelection();if(g)g.removeAllRanges()}catch(e){}
+  showTap(base);
+}
+function closeTap(){$('tp').hidden=true}
+function showTap(base){
+  $('tprel').checked=$('rvrel').checked;
+  const ww=$('tpword');ww.innerHTML='';
+  [...base].forEach((ch,j)=>{
+    if(!RVV.includes(ch)){const s=document.createElement('span');s.className='lt';s.textContent=ch;ww.append(s);return}
+    const col=document.createElement('div');col.className='col';
+    const b=document.createElement('button');b.className='vb';b.textContent=ch;b.onclick=()=>tapCommit(base,j,false);
+    col.append(b);
+    if(ch==='е'){const y=document.createElement('button');y.className='s yb';y.textContent='ё';y.onclick=()=>tapCommit(base,j,true);col.append(y)}
+    ww.append(col);
+  });
+  $('tp').hidden=false;
+}
+function tapCommit(base,j,toYo){
+  const k=norm(base),ch=[...base];
+  if(toYo)ch[j]='ё';
+  const v=toYo?ch.join(''):ch.slice(0,j).join('')+'+'+ch.slice(j).join('');
+  const prev=dict[k],rel=$('tprel').checked;
+  dict[k]={v,exact:!rel};save();closeTap();rerender();
+  let m='Сохранено в словаре: '+v;
+  if(rel&&text){
+    const x=pfOf(dict[k]);
+    const hit=[...new Set((text.match(WORD)||[]).map(t=>t.toLowerCase()))].filter(t=>norm(t)!==k&&t.length>=x.n&&norm(t).startsWith(x.key));
+    if(hit.length)m+='. Заодно применено к: '+hit.slice(0,8).join(', ')+(hit.length>8?'…':'');
+  }
+  const box=$('tapmsg');box.className='mu';box.textContent=m+' ';
+  const u=document.createElement('button');u.className='s';u.textContent='↩ Отменить';
+  u.onclick=()=>{if(prev)dict[k]=prev;else delete dict[k];save();rerender();box.textContent='Отменено.'};
+  box.append(u);
+}
+$('tpcancel').onclick=closeTap;
+$('tp').addEventListener('click',e=>{if(e.target===$('tp'))closeTap()});
+
 function showRv(){
   const pf=prefs(),all=$('rvall').checked;
   const R=w=>{const v=lookup(w,pf);return !!v&&v.includes('+')};
@@ -697,7 +776,7 @@ renderDict();
 <div id="upd" hidden><span style="flex:1">Доступна новая версия</span><button id="updb">Обновить</button></div>
 <script>
 (function(){
-  const APP_VERSION='1.3.0';
+  const APP_VERSION='1.4.0';
   document.getElementById('ver').textContent=APP_VERSION;
   try{navigator.storage&&navigator.storage.persist&&navigator.storage.persist()}catch(e){}
   if(!('serviceWorker' in navigator))return;
@@ -713,16 +792,4 @@ renderDict();
 })();
 </script>
 </body>
-</html>
-
-</html>
-
-</html>
-
-</html>
-
-</html>
-
-</html>
-
 </html>

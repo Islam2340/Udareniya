@@ -1,5 +1,5 @@
 // Версия приложения. При каждом обновлении поднимайте её здесь и в index.html (APP_VERSION).
-const VERSION='1.3.0';
+const VERSION='1.4.0';
 const CACHE='app-'+VERSION;
 const FILES=['./','index.html','manifest.webmanifest','icon-192.png','icon-512.png','icon-maskable-512.png','apple-touch-icon.png'];
 
